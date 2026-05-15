@@ -513,6 +513,12 @@
                             <div class="stats-grid" id="defectGrid"></div>
                         </div>
                     </div>
+                    
+                    <!-- 新增：分析结论 -->
+                    <div id="conclusionSection" style="margin-top:25px;padding-top:20px;border-top:2px solid #f1f1f1;display:none;">
+                        <h3 style="color:#667eea;margin-bottom:15px;font-size:16px;">📊 分析结论</h3>
+                        <div id="conclusionContent" style="background:linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);padding:20px;border-radius:12px;line-height:1.8;"></div>
+                    </div>
                 </div>
 
                 <div class="card" id="chartCard" style="display:none;">
@@ -1006,17 +1012,18 @@
 
         function clearAllData() {
             if (!currentProject) return;
-            if (!confirm('确定要清空所有数据吗？此操作不可恢复！')) return;
+            if (!confirm('确定要清空所有数据吗?此操作不可恢复!')) return;
 
             projects[currentProject].data = [];
             saveProjects();
             updateProjectInfoOnly();
 
             document.getElementById('alarmContent').innerHTML = '<div class="empty-state"><p>暂无报警信息</p></div>';
-            document.getElementById('statsGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999;">数据不足，请至少添加2组数据</div>';
+            document.getElementById('statsGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999;">数据不足,请至少添加2组数据</div>';
             document.getElementById('performanceGrid').innerHTML = document.getElementById('statsGrid').innerHTML;
             document.getElementById('defectGrid').innerHTML = document.getElementById('statsGrid').innerHTML;
             document.getElementById('historyContent').innerHTML = '<div class="empty-state"><p>暂无历史数据</p></div>';
+            document.getElementById('conclusionSection').style.display = 'none';
 
             if (xbarChart) { xbarChart.destroy(); xbarChart = null; }
             if (rChart) { rChart.destroy(); rChart = null; }
@@ -1401,6 +1408,7 @@
                 statsGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999;">数据不足，请至少添加2组数据</div>';
                 performanceGrid.innerHTML = statsGrid.innerHTML;
                 defectGrid.innerHTML = statsGrid.innerHTML;
+                document.getElementById('conclusionSection').style.display = 'none';
                 return;
             }
 
@@ -1649,6 +1657,9 @@
                     `;
                 }
             }
+
+            // 更新分析结论
+            updateConclusion();
         }
 
         function updateCharts() {
@@ -1973,9 +1984,167 @@
             `;
         }
 
+        // 新增：生成分析结论
+        function generateConclusion() {
+            if (!currentProject) return null;
+            const project = projects[currentProject];
+            
+            if (project.data.length < 2) {
+                return null;
+            }
+
+            let conclusion = [];
+            let overallStatus = 'success'; // success, warning, danger
+
+            if (project.type === 'xbar-r') {
+                const result = calculateXbarR(project.data);
+                if (!result) return null;
+
+                // 1. 过程稳定性评估
+                const outOfControlPoints = result.subgroupMeans.filter(m => m > result.uclX || m < result.lclX).length;
+                const totalPoints = result.subgroupMeans.length;
+                const controlRate = ((totalPoints - outOfControlPoints) / totalPoints * 100).toFixed(1);
+
+                if (outOfControlPoints === 0) {
+                    conclusion.push(`<strong>✅ 过程稳定性：</strong>所有${totalPoints}个子组均在控制限内，过程处于统计控制状态。`);
+                } else {
+                    conclusion.push(`<strong>⚠️ 过程稳定性：</strong>有${outOfControlPoints}个子组(${((outOfControlPoints/totalPoints)*100).toFixed(1)}%)超出控制限，过程存在异常波动，需要调查原因。`);
+                    overallStatus = 'danger';
+                }
+
+                // 2. WE规则检查
+                let ruleViolations = [];
+                WE_RULES.forEach(rule => {
+                    if (rule.check(result.subgroupMeans, result.uclX, result.lclX, result.xBar)) {
+                        ruleViolations.push(rule.name);
+                    }
+                });
+
+                if (ruleViolations.length > 0) {
+                    conclusion.push(`<strong>🔍 判异规则：</strong>触发以下Western Electric规则：${ruleViolations.join('、')}，表明过程可能存在特殊原因变异。`);
+                    overallStatus = 'danger';
+                } else {
+                    conclusion.push(`<strong>🔍 判异规则：</strong>未触发任何Western Electric判异规则，过程表现良好。`);
+                }
+
+                // 3. 过程能力评估
+                if (project.usl && project.lsl) {
+                    const cpResult = calculateProcessCapability(project.data, project.usl, project.lsl);
+                    if (cpResult) {
+                        let capabilityLevel = '';
+                        if (cpResult.cpk >= 1.67) {
+                            capabilityLevel = '优秀（Cpk≥1.67）';
+                            conclusion.push(`<strong>💪 过程能力：</strong>Cpk=${cpResult.cpk.toFixed(3)}，能力等级为<strong style="color:#28a745">${capabilityLevel}</strong>，过程能力非常充足。`);
+                        } else if (cpResult.cpk >= 1.33) {
+                            capabilityLevel = '良好（1.33≤Cpk<1.67）';
+                            conclusion.push(`<strong>💪 过程能力：</strong>Cpk=${cpResult.cpk.toFixed(3)}，能力等级为<strong style="color:#17a2b8">${capabilityLevel}</strong>，过程能力充足。`);
+                        } else if (cpResult.cpk >= 1.0) {
+                            capabilityLevel = '一般（1.0≤Cpk<1.33）';
+                            conclusion.push(`<strong>💪 过程能力：</strong>Cpk=${cpResult.cpk.toFixed(3)}，能力等级为<strong style="color:#ffc107">${capabilityLevel}</strong>，建议改进过程以减少变异。`);
+                            overallStatus = overallStatus === 'danger' ? 'danger' : 'warning';
+                        } else {
+                            capabilityLevel = '不足（Cpk<1.0）';
+                            conclusion.push(`<strong>💪 过程能力：</strong>Cpk=${cpResult.cpk.toFixed(3)}，能力等级为<strong style="color:#dc3545">${capabilityLevel}</strong>，过程能力严重不足，必须立即改进！`);
+                            overallStatus = 'danger';
+                        }
+
+                        // 偏移分析
+                        const centeringRatio = Math.abs(cpResult.mean - (project.usl + project.lsl) / 2) / ((project.usl - project.lsl) / 2);
+                        if (centeringRatio > 0.25) {
+                            conclusion.push(`<strong>📍 中心位置：</strong>过程均值相对规格中心偏移${(centeringRatio*100).toFixed(1)}%，建议调整工艺参数使过程居中。`);
+                        } else {
+                            conclusion.push(`<strong>📍 中心位置：</strong>过程均值接近规格中心，居中良好。`);
+                        }
+                    }
+                } else {
+                    conclusion.push(`<strong>ℹ️ 过程能力：</strong>未设置规格限（USL/LSL），无法计算Cpk。建议在项目信息中设置规格限以评估过程能力。`);
+                }
+
+                // 4. 变异程度
+                const cv = (result.sigma / result.xBar * 100).toFixed(2);
+                if (cv < 5) {
+                    conclusion.push(`<strong>📊 变异程度：</strong>变异系数CV=${cv}%，过程变异较小，一致性良好。`);
+                } else if (cv < 10) {
+                    conclusion.push(`<strong>📊 变异程度：</strong>变异系数CV=${cv}%，过程变异在可接受范围内。`);
+                } else {
+                    conclusion.push(`<strong>📊 变异程度：</strong>变异系数CV=${cv}%，过程变异较大，需要减少波动。`);
+                    if (overallStatus === 'success') overallStatus = 'warning';
+                }
+
+            } else if (project.type === 'p' || project.type === 'np') {
+                // 计数型数据的结论
+                const totalDefectives = project.data.reduce((sum, d) => {
+                    return sum + d.values.filter(v => v === 1 || (typeof v === 'number' && v < 0.5)).length;
+                }, 0);
+                const totalUnits = project.data.reduce((sum, d) => sum + d.values.length, 0);
+                const defectRate = (totalDefectives / totalUnits * 100).toFixed(2);
+
+                if (parseFloat(defectRate) < 1) {
+                    conclusion.push(`<strong>✅ 质量水平：</strong>不合格率为${defectRate}%，质量表现优秀。`);
+                } else if (parseFloat(defectRate) < 5) {
+                    conclusion.push(`<strong>⚠️ 质量水平：</strong>不合格率为${defectRate}%，质量表现一般，仍有改进空间。`);
+                    overallStatus = 'warning';
+                } else {
+                    conclusion.push(`<strong>❌ 质量水平：</strong>不合格率为${defectRate}%，质量表现较差，需要重点改进。`);
+                    overallStatus = 'danger';
+                }
+
+                conclusion.push(`<strong>📈 数据统计：</strong>共检验${totalUnits}个产品，发现${totalDefectives}个不合格品，子组数为${project.data.length}。`);
+            }
+
+            // 5. 总体评价和建议
+            conclusion.push('<hr style="margin:15px 0;border:none;border-top:1px solid #ddd;">');
+            
+            if (overallStatus === 'success') {
+                conclusion.push(`<strong style="color:#28a745;font-size:15px;">🎯 综合评价：</strong>该过程整体表现<strong style="color:#28a745">良好</strong>，处于受控状态，建议继续保持当前工艺条件，定期监控即可。`);
+            } else if (overallStatus === 'warning') {
+                conclusion.push(`<strong style="color:#ffc107;font-size:15px;">🎯 综合评价：</strong>该过程存在<strong style="color:#ffc107">一定风险</strong>，建议：①加强过程监控频率；②分析变异来源；③考虑优化工艺参数以提升过程能力。`);
+            } else {
+                conclusion.push(`<strong style="color:#dc3545;font-size:15px;">🎯 综合评价：</strong>该过程存在<strong style="color:#dc3545">严重问题</strong>，建议：①立即停止生产并排查异常原因；②对已生产产品进行全检；③重新验证工艺参数；④制定纠正预防措施(CAPA)。`);
+            }
+
+            return {
+                html: conclusion.join('<br><br>'),
+                status: overallStatus
+            };
+        }
+
+        // 更新结论显示
+        function updateConclusion() {
+            const conclusionSection = document.getElementById('conclusionSection');
+            const conclusionContent = document.getElementById('conclusionContent');
+            
+            if (!currentProject) {
+                conclusionSection.style.display = 'none';
+                return;
+            }
+
+            const project = projects[currentProject];
+            if (project.data.length < 2) {
+                conclusionSection.style.display = 'none';
+                return;
+            }
+
+            const conclusion = generateConclusion();
+            if (conclusion) {
+                conclusionSection.style.display = 'block';
+                conclusionContent.innerHTML = conclusion.html;
+                
+                // 根据状态设置边框颜色
+                const colors = {
+                    'success': '#28a745',
+                    'warning': '#ffc107',
+                    'danger': '#dc3545'
+                };
+                conclusionContent.style.borderLeft = `4px solid ${colors[conclusion.status]}`;
+            } else {
+                conclusionSection.style.display = 'none';
+            }
+        }
         loadProjects();
     </script>
 </body>
 </html>
+
 
 
