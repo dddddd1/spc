@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPC分析工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .main-content {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+        }
+        .sidebar {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            height: fit-content;
+        }
+        .sidebar h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .project-list {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        .project-item {
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .project-item:hover {
+            background: #e9ecef;
+        }
+        .project-item.active {
+            background: #667eea;
+            color: white;
+            border-left-color: #764ba2;
+        }
+        .project-item .project-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .project-item .project-info {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            flex: 1;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5a6fd6;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .workspace {
+            display: grid;
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f1f1;
+        }
+        .card-header h2 {
+            color: #667eea;
+            font-size: 18px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group select {
+            padding: 10px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .data-input-area {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .data-input-area textarea {
+            width: 100%;
+            height: 80px;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        .data-input-area textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .data-input-area p {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .stat-card.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .stat-card.success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .stat-card.danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+        .stat-card .stat-value {
+            font-size: 26px;
+            font-weight: 700;
+        }
+        .stat-card .stat-label {
+            font-size: 11px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        .chart-container {
+            position: relative;
+            height: 480px;
+            margin-top: 15px;
+        }
+        .chart-row {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        .modal-content .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-content .btn-group {
+            margin-top: 20px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .alert-box {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: none;        }
+        .alert-box.error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+        }
+        .alert-box.success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+        }
+        .import-section {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .file-input {
+            display: none;
+        }
+        .alarm-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .alarm-box h4 {
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .alarm-item {
+            background: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #856404;
+        }
+        .alarm-item:last-child {
+            margin-bottom: 0;
+        }
+        .alarm-item.rule-violation {
+            border-left: 3px solid #dc3545;
+        }
+        .alarm-item.trend-violation {
+            border-left: 3px solid #f5576c;
+        }
+        .tab-container {
+            margin-bottom: 15px;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        .tab-btn {
+            padding: 8px 16px;
+            border: none;
+            background: #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .history-table th, .history-table td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        .history-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #667eea;
+        }
+        .history-table tr:hover {
+            background: #f8f9fa;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .status-badge.normal {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-badge.danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        @media (max-width: 1024px) {
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SPC统计分析工具</h1>
+            <p>统计过程控制 - 控制图分析 - 过程能力分析 - 异常报警</p>
+        </header>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <h3>项目列表</h3>
+                <div class="project-list" id="projectList"></div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="showNewProjectModal()">新建项目</button>
+                    <button class="btn btn-danger" onclick="deleteCurrentProject()">删除</button>
+                </div>
+            </div>
+
+            <div class="workspace" id="workspace">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>项目信息</h2>
+                        <button class="btn btn-secondary btn-small" id="editProjectBtn" onclick="toggleEditProject()" style="display:none;">✏️ 编辑</button>
+                    </div>
+                    <div id="projectInfo" class="empty-state">
+                        <p>请选择或创建一个项目</p>
+                    </div>
+                    <div id="editProjectForm" style="display:none;padding-top:15px;border-top:1px dashed #ddd;margin-top:15px;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>规格上限 USL</label>
+                                <input type="number" step="0.001" id="editUSL" placeholder="例如：10.5">
+                            </div>
+                            <div class="form-group">
+                                <label>规格下限 LSL</label>
+                                <input type="number" step="0.001" id="editLSL" placeholder="例如：9.5">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>性能规格上限 USLp（用于Pp/Ppk）</label>
+                                <input type="number" step="0.001" id="editUSLp" placeholder="用于Pp/Ppk计算">
+                            </div>
+                            <div class="form-group">
+                                <label>性能规格下限 LSQp（用于Pp/Ppk）</label>
+                                <input type="number" step="0.001" id="editLSLp" placeholder="用于Pp/Ppk计算">
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="saveProjectEdit()">💾 保存修改</button>
+                            <button class="btn btn-secondary" onclick="toggleEditProject()">取消</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="dataInputCard" style="display:none;">
+                    <div class="card-header">
+                        <h2>数据录入</h2>
+                    </div>
+                    <div class="alert-box" id="alertBox"></div>
+                    <div class="import-section">
+                        <button class="btn btn-secondary btn-small" onclick="document.getElementById('fileInputCSV').click()">导入CSV</button>
+                        <button class="btn btn-secondary btn-small" onclick="document.getElementById('fileInputExcel').click()">导入Excel</button>
+                        <input type="file" id="fileInputCSV" class="file-input" accept=".csv" onchange="importCSV(event)">
+                        <input type="file" id="fileInputExcel" class="file-input" accept=".xlsx,.xls" onchange="importExcel(event)">
+                    </div>
+                    <div class="analysis-section" style="margin-top:15px;padding-top:15px;border-top:1px dashed #ddd;">
+                        <button class="btn btn-primary" onclick="runAnalysis()" style="flex:1;">📊 生成统计分析</button>
+                        <button class="btn btn-secondary" onclick="runCharts()" style="flex:1;">📈 生成控制图</button>
+                        <button class="btn btn-danger" onclick="clearAllData()" style="flex:1;">🗑️ 清空数据</button>
+                    </div>
+                </div>
+
+                <div class="card" id="alarmCard" style="display:none;">
+                    <div class="card-header">
+                        <h2>异常报警</h2>
+                    </div>
+                    <div id="alarmContent">
+                        <div class="empty-state"><p>暂无报警信息</p></div>
+                    </div>
+                </div>
+
+                <div class="card" id="statsCard" style="display:none;">
+                    <div class="card-header">
+                        <h2>统计分析结果</h2>
+                    </div>
+                    <div class="tab-container">
+                        <div class="tab-buttons">
+                            <button class="tab-btn active" onclick="switchTab('capability')">过程能力</button>
+                            <button class="tab-btn" onclick="switchTab('performance')">过程性能</button>
+                            <button class="tab-btn" onclick="switchTab('defect')">不合格统计</button>
+                        </div>
+                        <div id="tab-capability" class="tab-content active">
+                            <div class="stats-grid" id="statsGrid"></div>
+                        </div>
+                        <div id="tab-performance" class="tab-content">
+                            <div class="stats-grid" id="performanceGrid"></div>
+                        </div>
+                        <div id="tab-defect" class="tab-content">
+                            <div class="stats-grid" id="defectGrid"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="chartCard" style="display:none;">
+                    <div class="card-header">
+                        <h2>控制图</h2>
+                    </div>
+                    <div id="chartContainer">
+                        <div class="chart-row" id="chartRow">
+                            <div class="chart-wrapper">
+                                <canvas id="xbarChart" style="height: 380px;"></canvas>
+                            </div>
+                            <div class="chart-wrapper" id="rChartWrapper" style="display:none;">
+                                <canvas id="rChart" style="height: 380px;"></canvas>
+                            </div>
+                            <div class="chart-wrapper" id="npChartWrapper" style="display:none;">
+                                <canvas id="npChart" style="height: 380px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="historyCard" style="display:none;">
+                    <div class="card-header">
+                        <h2>历史数据对比</h2>
+                        <button class="btn btn-secondary btn-small" onclick="exportHistory()">导出数据</button>
+                    </div>
+                    <div id="historyContent">
+                        <div class="empty-state"><p>暂无历史数据</p></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="newProjectModal">
+        <div class="modal-content">
+            <h2>新建SPC项目</h2>
+            <div class="form-group">
+                <label>项目名称</label>
+                <input type="text" id="newProjectName" placeholder="例如：产品A尺寸监控">
+            </div>
+            <div class="form-group">
+                <label>数据类型</label>
+                <select id="newProjectType">
+                    <option value="xbar-r">X-bar R图（计量型数据）</option>
+                    <option value="p">p图（计数型数据）</option>
+                    <option value="np">np图（计数型数据）</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>规格上限 USL（可选）</label>
+                <input type="number" step="0.001" id="newProjectUSL" placeholder="例如：10.5">
+            </div>
+            <div class="form-group">
+                <label>规格下限 LSL（可选）</label>
+                <input type="number" step="0.001" id="newProjectLSL" placeholder="例如：9.5">
+            </div>
+            <div class="form-group">
+                <label>规格上限 σ（过程性能，USL可选）</label>
+                <input type="number" step="0.001" id="newProjectUSLp" placeholder="用于Pp/Ppk计算">
+            </div>
+            <div class="form-group">
+                <label>规格下限 σ（过程性能，LSL可选）</label>
+                <input type="number" step="0.001" id="newProjectLSLp" placeholder="用于Pp/Ppk计算">
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="createProject()">创建</button>
+                <button class="btn btn-secondary" onclick="hideNewProjectModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let projects = {};
+        let currentProject = null;
+        let xbarChart = null;
+        let rChart = null;
+        let npChart = null;
+
+        const XBAR_R_CONSTANTS = {
+            2: [0.577, 1.88, 0.00, 3.27],
+            3: [0.484, 1.02, 0.00, 2.57],
+            4: [0.429, 0.73, 0.00, 2.28],
+            5: [0.395, 0.58, 0.04, 2.11],
+            6: [0.370, 0.48, 0.10, 2.00],
+            7: [0.351, 0.42, 0.16, 1.92],
+            8: [0.337, 0.37, 0.22, 1.86],
+            9: [0.325, 0.34, 0.27, 1.82],
+            10: [0.315, 0.31, 0.31, 1.78]
+        };
+
+        const WE_RULES = [
+            { name: '规则1', desc: '1点落在A区之外', check: (means, ucl, lcl, xBar) => means.some(m => m > ucl || m < lcl) },
+            { name: '规则2', desc: '连续9点落在中心线同一侧', check: (means, ucl, lcl, xBar) => checkConsecutiveSameSide(means, 9, xBar) },
+            { name: '规则3', desc: '连续6点单调上升或下降', check: (means, ucl, lcl, xBar) => checkMonotonic(means, 6) },
+            { name: '规则4', desc: '连续14点交替上下', check: (means, ucl, lcl, xBar) => checkAlternating(means, 14) },
+            { name: '规则5', desc: '连续2/3点落在B区之外', check: (means, ucl, lcl, xBar) => checkTwoOfThree(means, ucl, lcl, xBar) },
+            { name: '规则6', desc: '连续4/5点落在C区之外', check: (means, ucl, lcl, xBar) => checkFourOfFive(means, ucl, lcl, xBar) },
+            { name: '规则7', desc: '连续15点落在C区之内', check: (means, ucl, lcl, xBar) => checkInControlZone(means, ucl, lcl, xBar, 15) },
+            { name: '规则8', desc: '连续8点落在C区之外', check: (means, ucl, lcl, xBar) => checkEightOutsideC(means, ucl, lcl, xBar) }
+        ];
+
+        function checkConsecutiveSameSide(data, count, center) {
+            for (let i = 0; i <= data.length - count; i++) {
+                let sameSide = true;
+                for (let j = i; j < i + count; j++) {
+                    if ((data[j] >= center) !== (data[i] >= center)) {
+                        sameSide = false;
+                        break;
+                    }
+                }
+                if (sameSide) return true;
+            }
+            return false;
+        }
+
+        function checkMonotonic(data, count) {
+            for (let i = 0; i <= data.length - count; i++) {
+                let increasing = true;
+                let decreasing = true;
+                for (let j = i; j < i + count - 1; j++) {
+                    if (data[j] >= data[j + 1]) increasing = false;
+                    if (data[j] <= data[j + 1]) decreasing = false;
+                }
+                if (increasing || decreasing) return true;
+            }
+            return false;
+        }
+
+        function checkAlternating(data, count) {
+            for (let i = 0; i <= data.length - count; i++) {
+                let alternating = true;
+                for (let j = i; j < i + count - 1; j++) {
+                    if ((data[j] >= data[j + 1]) === (data[j + 1] >= data[j + 2])) {
+                        alternating = false;
+                        break;
+                    }
+                }
+                if (alternating) return true;
+            }
+            return false;
+        }
+
+        function checkTwoOfThree(means, ucl, lcl, xBar) {
+            const aZone = (ucl - xBar) / 3;
+            const bZone = aZone * 2;
+            for (let i = 0; i <= means.length - 3; i++) {
+                const subset = means.slice(i, i + 3);
+                const inBOrBeyond = subset.filter(m => m > xBar + bZone || m < xBar - bZone).length;
+                if (inBOrBeyond >= 2) return true;
+            }
+            return false;
+        }
+
+        function checkFourOfFive(means, ucl, lcl, xBar) {
+            const cZone = (ucl - xBar) / 3;
+            for (let i = 0; i <= means.length - 5; i++) {
+                const subset = means.slice(i, i + 5);
+                const inCOrBeyond = subset.filter(m => m > xBar + cZone || m < xBar - cZone).length;
+                if (inCOrBeyond >= 4) return true;
+            }
+            return false;
+        }
+
+        function checkInControlZone(means, ucl, lcl, xBar, count) {
+            const cZone = (ucl - xBar) / 3;
+            for (let i = 0; i <= means.length - count; i++) {
+                const subset = means.slice(i, i + count);
+                const inCZone = subset.filter(m => Math.abs(m - xBar) <= cZone).length;
+                if (inCZone === count) return true;
+            }
+            return false;
+        }
+
+        function checkEightOutsideC(means, ucl, lcl, xBar) {
+            const cZone = (ucl - xBar) / 3;
+            for (let i = 0; i <= means.length - 8; i++) {
+                const subset = means.slice(i, i + 8);
+                const outsideC = subset.filter(m => Math.abs(m - xBar) > cZone).length;
+                if (outsideC >= 8) return true;
+            }
+            return false;
+        }
+
+        function checkSevenConsecutiveTrend(data) {
+            for (let i = 0; i <= data.length - 7; i++) {
+                let increasing = true;
+                let decreasing = true;
+                for (let j = i; j < i + 6; j++) {
+                    if (data[j] >= data[j + 1]) increasing = false;
+                    if (data[j] <= data[j + 1]) decreasing = false;
+                }
+                if (increasing) return { type: '上升', start: i + 1, end: i + 7 };
+                if (decreasing) return { type: '下降', start: i + 1, end: i + 7 };
+            }
+            return null;
+        }
+
+        function loadProjects() {
+            const saved = localStorage.getItem('spc_projects');
+            if (saved) {
+                projects = JSON.parse(saved);
+            }
+            renderProjectList();
+        }
+
+        function saveProjects() {
+            localStorage.setItem('spc_projects', JSON.stringify(projects));
+        }
+
+        function renderProjectList() {
+            const list = document.getElementById('projectList');
+            list.innerHTML = '';
+            const projectNames = Object.keys(projects);
+            if (projectNames.length === 0) {
+                list.innerHTML = '<div style="padding:20px;color:#999;text-align:center;">暂无项目</div>';
+                return;
+            }
+            projectNames.forEach(name => {
+                const project = projects[name];
+                const div = document.createElement('div');
+                div.className = 'project-item' + (currentProject === name ? ' active' : '');
+                div.onclick = () => selectProject(name);
+                const typeName = project.type === 'xbar-r' ? 'X-bar R' : project.type === 'p' ? 'p图' : 'np图';
+                div.innerHTML = `
+                    <div class="project-name">${name}</div>
+                    <div class="project-info">${typeName} | ${project.data.length}组</div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function showNewProjectModal() {
+            document.getElementById('newProjectModal').classList.add('active');
+            document.getElementById('newProjectName').value = '';
+            document.getElementById('newProjectUSL').value = '';
+            document.getElementById('newProjectLSL').value = '';
+            document.getElementById('newProjectUSLp').value = '';
+            document.getElementById('newProjectLSLp').value = '';
+        }
+
+        function hideNewProjectModal() {
+            document.getElementById('newProjectModal').classList.remove('active');
+        }
+
+        function createProject() {
+            const name = document.getElementById('newProjectName').value.trim();
+            const type = document.getElementById('newProjectType').value;
+            const usl = document.getElementById('newProjectUSL').value;
+            const lsl = document.getElementById('newProjectLSL').value;
+            const uslp = document.getElementById('newProjectUSLp').value;
+            const lslp = document.getElementById('newProjectLSLp').value;
+
+            if (!name) {
+                showAlert('请输入项目名称', 'error');
+                return;
+            }
+            if (projects[name]) {
+                showAlert('项目名称已存在', 'error');
+                return;
+            }
+
+            projects[name] = {
+                type: type,
+                usl: usl ? parseFloat(usl) : null,
+                lsl: lsl ? parseFloat(lsl) : null,
+                uslp: uslp ? parseFloat(uslp) : null,
+                lslp: lslp ? parseFloat(lslp) : null,
+                data: [],
+                created: new Date().toISOString()
+            };
+
+            saveProjects();
+            renderProjectList();
+            hideNewProjectModal();
+            selectProject(name);
+            showAlert('项目创建成功', 'success');
+        }
+
+        function selectProject(name) {
+            currentProject = name;
+            renderProjectList();
+            updateWorkspace();
+        }
+
+        function deleteCurrentProject() {
+            if (!currentProject) return;
+            if (confirm(`确定删除项目 "${currentProject}" 吗？`)) {
+                delete projects[currentProject];
+                currentProject = null;
+                saveProjects();
+                renderProjectList();
+                updateWorkspace();
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+
+        function updateWorkspace() {
+            const infoDiv = document.getElementById('projectInfo');
+            const dataCard = document.getElementById('dataInputCard');
+            const alarmCard = document.getElementById('alarmCard');
+            const statsCard = document.getElementById('statsCard');
+            const chartCard = document.getElementById('chartCard');
+            const historyCard = document.getElementById('historyCard');
+
+            if (!currentProject) {
+                infoDiv.innerHTML = '<div class="empty-state"><p>请选择或创建一个项目</p></div>';
+                dataCard.style.display = 'none';
+                alarmCard.style.display = 'none';
+                statsCard.style.display = 'none';
+                chartCard.style.display = 'none';
+                historyCard.style.display = 'none';
+                return;
+            }
+
+            const project = projects[currentProject];
+            const typeName = project.type === 'xbar-r' ? 'X-bar R图（计量型）' : project.type === 'p' ? 'p图（计数型）' : 'np图（计数型）';
+
+            infoDiv.innerHTML = `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>项目名称</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;font-weight:600;">${currentProject}</div>
+                    </div>
+                    <div class="form-group">
+                        <label>数据类型</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;">${typeName}</div>
+                    </div>
+                    <div class="form-group">
+                        <label>数据组数</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;font-weight:600;color:#667eea;">${project.data.length}</div>
+                    </div>
+                </div>
+                ${project.usl && project.lsl ? `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>规格上限 USL</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;">${project.usl}</div>
+                    </div>
+                    <div class="form-group">
+                        <label>规格下限 LSL</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;">${project.lsl}</div>
+                    </div>
+                    <div class="form-group">
+                        <label>规格范围</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;">${(project.usl - project.lsl).toFixed(3)}</div>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+
+            dataCard.style.display = 'block';
+            alarmCard.style.display = 'block';
+            statsCard.style.display = 'block';
+            chartCard.style.display = 'block';
+            historyCard.style.display = 'block';
+            document.getElementById('editProjectBtn').style.display = 'block';
+            document.getElementById('editProjectForm').style.display = 'none';
+
+            updateAlarm();
+            updateStats();
+            updateCharts();
+            updateHistory();
+        }
+
+        function updateProjectInfoOnly() {
+            if (!currentProject) return;
+            const project = projects[currentProject];
+            const infoDiv = document.getElementById('projectInfo');
+            const typeName = project.type === 'xbar-r' ? 'X-bar R图（计量型）' : project.type === 'p' ? 'p图（计数型）' : 'np图（计数型）';
+
+            infoDiv.innerHTML = `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>项目名称</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;font-weight:600;">${currentProject}</div>
+                    </div>
+                    <div class="form-group">
+                        <label>数据类型</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;">${typeName}</div>
+                    </div>
+                    <div class="form-group">
+                        <label>数据组数</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;font-weight:600;color:#667eea;">${project.data.length}</div>
+                    </div>
+                </div>
+                ${project.usl && project.lsl ? `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>规格上限 USL</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;">${project.usl}</div>
+                    </div>
+                    <div class="form-group">
+                        <label>规格下限 LSL</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;">${project.lsl}</div>
+                    </div>
+                    <div class="form-group">
+                        <label>规格范围</label>
+                        <div style="padding:10px;background:#f8f9fa;border-radius:8px;">${(project.usl - project.lsl).toFixed(3)}</div>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        function toggleEditProject() {
+            if (!currentProject) return;
+            const form = document.getElementById('editProjectForm');
+            const project = projects[currentProject];
+
+            if (form.style.display === 'none') {
+                document.getElementById('editUSL').value = project.usl || '';
+                document.getElementById('editLSL').value = project.lsl || '';
+                document.getElementById('editUSLp').value = project.uslp || '';
+                document.getElementById('editLSLp').value = project.lslp || '';
+                form.style.display = 'block';
+                document.getElementById('editUSL').focus();
+            } else {
+                form.style.display = 'none';
+            }
+        }
+
+        function saveProjectEdit() {
+            if (!currentProject) return;
+
+            const usl = document.getElementById('editUSL').value;
+            const lsl = document.getElementById('editLSL').value;
+            const uslp = document.getElementById('editUSLp').value;
+            const lslp = document.getElementById('editLSLp').value;
+
+            projects[currentProject].usl = usl ? parseFloat(usl) : null;
+            projects[currentProject].lsl = lsl ? parseFloat(lsl) : null;
+            projects[currentProject].uslp = uslp ? parseFloat(uslp) : null;
+            projects[currentProject].lslp = lslp ? parseFloat(lslp) : null;
+
+            saveProjects();
+            updateWorkspace();
+            showAlert('项目参数已保存', 'success');
+        }
+
+        function runAnalysis() {
+            if (!currentProject) {
+                showAlert('请先选择项目', 'error');
+                return;
+            }
+            const project = projects[currentProject];
+            console.log('runAnalysis', project);
+            if (project.data.length < 2) {
+                showAlert(`数据不足，当前只有 ${project.data.length} 组，请至少添加2组数据`, 'error');
+                return;
+            }
+
+            document.getElementById('alarmCard').style.display = 'block';
+            document.getElementById('statsCard').style.display = 'block';
+
+            updateAlarm();
+            updateStats();
+            updateHistory();
+
+            const statsCard = document.getElementById('statsCard');
+            statsCard.scrollIntoView({ behavior: 'smooth' });
+
+            showAlert('统计分析已完成', 'success');
+        }
+
+        function runCharts() {
+            if (!currentProject) {
+                showAlert('请先选择项目', 'error');
+                return;
+            }
+            const project = projects[currentProject];
+            if (project.data.length < 2) {
+                showAlert(`数据不足，当前只有 ${project.data.length} 组，请至少添加2组数据`, 'error');
+                return;
+            }
+
+            document.getElementById('chartCard').style.display = 'block';
+            updateCharts();
+
+            const chartCard = document.getElementById('chartCard');
+            chartCard.scrollIntoView({ behavior: 'smooth' });
+
+            showAlert('控制图已生成', 'success');
+        }
+
+        function clearAllData() {
+            if (!currentProject) return;
+            if (!confirm('确定要清空所有数据吗？此操作不可恢复！')) return;
+
+            projects[currentProject].data = [];
+            saveProjects();
+            updateProjectInfoOnly();
+
+            document.getElementById('alarmContent').innerHTML = '<div class="empty-state"><p>暂无报警信息</p></div>';
+            document.getElementById('statsGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999;">数据不足，请至少添加2组数据</div>';
+            document.getElementById('performanceGrid').innerHTML = document.getElementById('statsGrid').innerHTML;
+            document.getElementById('defectGrid').innerHTML = document.getElementById('statsGrid').innerHTML;
+            document.getElementById('historyContent').innerHTML = '<div class="empty-state"><p>暂无历史数据</p></div>';
+
+            if (xbarChart) { xbarChart.destroy(); xbarChart = null; }
+            if (rChart) { rChart.destroy(); rChart = null; }
+            if (npChart) { npChart.destroy(); npChart = null; }
+
+            showAlert('数据已清空', 'success');
+        }
+
+        function showAlert(message, type) {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.textContent = message;
+            alertBox.className = 'alert-box ' + type;
+            alertBox.style.display = 'block';
+            setTimeout(() => {
+                alertBox.style.display = 'none';
+            }, 3000);
+        }
+
+        function addSingleData() {
+            if (!currentProject) return;
+            const input = document.getElementById('dataInput').value.trim();
+            if (!input) {
+                showAlert('请输入数据', 'error');
+                return;
+            }
+            try {
+                const values = input.split(',').map(v => parseFloat(v.trim()));
+                if (values.some(isNaN)) throw new Error('Invalid data');
+                projects[currentProject].data.push({
+                    values: values,
+                    timestamp: new Date().toISOString()
+                });
+                saveProjects();
+                document.getElementById('dataInput').value = '';
+                updateProjectInfoOnly();
+                showAlert(`数据添加成功，当前共 ${projects[currentProject].data.length} 组`, 'success');
+            } catch (e) {
+                showAlert('请输入有效的数字，用逗号分隔', 'error');
+            }
+        }
+
+        function addBulkData() {
+            if (!currentProject) return;
+            const text = document.getElementById('bulkDataInput').value;
+            if (!text.trim()) {
+                showAlert('请输入批量数据', 'error');
+                return;
+            }
+            try {
+                const lines = text.split(/\r?\n/).filter(l => l.trim());
+                console.log('批量导入原始文本:', text);
+                console.log('分割后的行数:', lines.length);
+                console.log('分割后的行:', lines);
+
+                let count = 0;
+                lines.forEach((line, idx) => {
+                    const values = line.split(',').map(v => parseFloat(v.trim()));
+                    console.log(`第${idx+1}行 "${line}" 解析为:`, values);
+                    if (!values.some(isNaN) && values.length > 0) {
+                        projects[currentProject].data.push({
+                            values: values,
+                            timestamp: new Date().toISOString()
+                        });
+                        count++;
+                    }
+                });
+                console.log('成功导入组数:', count);
+                console.log('项目数据:', projects[currentProject].data);
+
+                if (count === 0) {
+                    showAlert('没有有效的数据行，请检查数据格式', 'error');
+                    return;
+                }
+                saveProjects();
+                document.getElementById('bulkDataInput').value = '';
+                updateProjectInfoOnly();
+                showAlert(`成功导入 ${count} 组数据，当前共 ${projects[currentProject].data.length} 组`, 'success');
+            } catch (e) {
+                console.error('批量导入错误:', e);
+                showAlert('数据格式错误: ' + e.message, 'error');
+            }
+        }
+
+        function importCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split('\n').filter(l => l.trim());
+                    if (lines.length === 0) {
+                        showAlert('CSV文件为空', 'error');
+                        return;
+                    }
+                    let count = 0;
+                    lines.forEach(line => {
+                        const values = line.split(',').map(v => parseFloat(v.trim()));
+                        if (!values.some(isNaN) && values.length > 0) {
+                            projects[currentProject].data.push({
+                                values: values,
+                                timestamp: new Date().toISOString()
+                            });
+                            count++;
+                        }
+                    });
+                    saveProjects();
+                    updateProjectInfoOnly();
+                    showAlert(`成功导入 ${count} 组数据，当前共 ${projects[currentProject].data.length} 组`, 'success');
+                } catch (e) {
+                    showAlert('CSV解析错误', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function importExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                    let count = 0;
+                    jsonData.forEach(row => {
+                        if (row.length > 0) {
+                            const values = row.map(v => parseFloat(v)).filter(v => !isNaN(v));
+                            if (values.length > 0) {
+                                projects[currentProject].data.push({
+                                    values: values,
+                                    timestamp: new Date().toISOString()
+                                });
+                                count++;
+                            }
+                        }
+                    });
+
+                    if (count === 0) {
+                        showAlert('没有有效的数据', 'error');
+                        return;
+                    }
+
+                    saveProjects();
+                    updateProjectInfoOnly();
+                    showAlert(`成功导入 ${count} 组数据，当前共 ${projects[currentProject].data.length} 组`, 'success');
+                } catch (e) {
+                    showAlert('Excel解析错误: ' + e.message, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        function exportHistory() {
+            if (!currentProject) return;
+            const project = projects[currentProject];
+            if (project.data.length === 0) {
+                showAlert('没有数据可导出', 'error');
+                return;
+            }
+
+            const wsData = project.data.map((d, i) => ({
+                '子组': i + 1,
+                '均值': d.values.reduce((a, b) => a + b, 0) / d.values.length,
+                '极差': Math.max(...d.values) - Math.min(...d.values),
+                '数据': d.values.join(', '),
+                '时间': new Date(d.timestamp).toLocaleString()
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(wsData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '历史数据');
+            XLSX.writeFile(wb, `${currentProject}_历史数据.xlsx`);
+        }
+
+        function calculateXbarR(data) {
+            if (!data || data.length < 2) return null;
+
+            const subgroupMeans = data.map(d => d.values.reduce((a, b) => a + b, 0) / d.values.length);
+            const subgroupRanges = data.map(d => Math.max(...d.values) - Math.min(...d.values));
+            const n = data[0].values.length;
+
+            const xBar = subgroupMeans.reduce((a, b) => a + b, 0) / subgroupMeans.length;
+            const rBar = subgroupRanges.reduce((a, b) => a + b, 0) / subgroupRanges.length;
+
+            let a2 = 0.577;
+            if (XBAR_R_CONSTANTS[n]) {
+                a2 = XBAR_R_CONSTANTS[n][0];
+            } else if (n > 10) {
+                a2 = 3 / (n * Math.sqrt(2));
+            }
+
+            const uclX = xBar + a2 * rBar;
+            const lclX = xBar - a2 * rBar;
+
+            let d4 = 2.459;
+            if (n > 10) d4 = n > 15 ? 1.964 : 2.114;
+            const uclR = d4 * rBar;
+            const lclR = 0;
+
+            const sigma = rBar / 1.128;
+
+            return {
+                xBar, rBar, uclX, lclX, uclR, lclR,
+                subgroupMeans, subgroupRanges, n, sigma
+            };
+        }
+
+        function calculatePChart(data) {
+            if (!data || data.length < 2) return null;
+
+            const defectives = data.map(d => {
+                const n = d.values.length;
+                const defectiveCount = d.values.filter(v => v === 1 || (typeof v === 'number' && v < 0.5)).length;
+                return { count: defectiveCount, n: n };
+            });
+
+            const totalDefectives = defectives.reduce((sum, d) => sum + d.count, 0);
+            const totalSize = defectives.reduce((sum, d) => sum + d.n, 0);
+            const pBar = totalDefectives / totalSize;
+
+            const proportions = defectives.map(d => d.count / d.n);
+            const uclP = defectives.map(d => {
+                const sigma = Math.sqrt(pBar * (1 - pBar) / d.n);
+                return pBar + 3 * sigma;
+            });
+            const lclP = defectives.map(d => {
+                const sigma = Math.sqrt(pBar * (1 - pBar) / d.n);
+                return Math.max(0, pBar - 3 * sigma);
+            });
+
+            return { pBar, uclP, lclP, proportions, defectives };
+        }
+
+        function calculateNpChart(data, n) {
+            if (!data || data.length < 2) return null;
+
+            const defectives = data.map(d => d.values.filter(v => v === 1 || (typeof v === 'number' && v < 0.5)).length);
+            const npBar = defectives.reduce((a, b) => a + b, 0) / defectives.length;
+            const pBar = npBar / n;
+
+            const uclNp = npBar + 3 * Math.sqrt(npBar * (1 - pBar));
+            const lclNp = Math.max(0, npBar - 3 * Math.sqrt(npBar * (1 - pBar)));
+
+            return { npBar, uclNp, lclNp, defectives, n };
+        }
+
+        function calculateProcessCapability(data, usl, lsl) {
+            if (!data || !usl || !lsl) return null;
+
+            const allValues = data.flatMap(d => d.values);
+            const mean = allValues.reduce((a, b) => a + b, 0) / allValues.length;
+            const variance = allValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (allValues.length - 1);
+            const sigma = Math.sqrt(variance);
+
+            if (sigma === 0) return null;
+
+            const cp = (usl - lsl) / (6 * sigma);
+            const cpu = (usl - mean) / (3 * sigma);
+            const cpl = (mean - lsl) / (3 * sigma);
+            const cpk = Math.min(cpu, cpl);
+
+            return { cp, cpk, cpu, cpl, sigma, mean, usl, lsl };
+        }
+
+        function calculateProcessPerformance(data, usl, lsl) {
+            if (!data || !usl || !lsl) return null;
+
+            const allValues = data.flatMap(d => d.values);
+            const mean = allValues.reduce((a, b) => a + b, 0) / allValues.length;
+            const variance = allValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / allValues.length;
+            const sigma = Math.sqrt(variance);
+
+            if (sigma === 0) return null;
+
+            const pp = (usl - lsl) / (6 * sigma);
+            const ppu = (usl - mean) / (3 * sigma);
+            const ppl = (mean - lsl) / (3 * sigma);
+            const ppk = Math.min(ppu, ppl);
+
+            return { pp, ppk, ppu, ppl, sigma, mean, usl, lsl };
+        }
+
+        function updateAlarm() {
+            if (!currentProject) return;
+            const project = projects[currentProject];
+            const alarmContent = document.getElementById('alarmContent');
+
+            if (project.data.length < 2) {
+                alarmContent.innerHTML = '<div class="empty-state"><p>数据不足，无法分析</p></div>';
+                return;
+            }
+
+            let alarms = [];
+
+            if (project.type === 'xbar-r') {
+                const result = calculateXbarR(project.data);
+                if (result) {
+                    result.subgroupMeans.forEach((m, i) => {
+                        if (m > result.uclX || m < result.lclX) {
+                            alarms.push({
+                                type: 'rule-violation',
+                                message: `规则1: 第${i + 1}组X-bar(${m.toFixed(3)})超出控制限`,
+                                level: 'danger'
+                            });
+                        }
+                    });
+
+                    WE_RULES.forEach(rule => {
+                        if (rule.check(result.subgroupMeans, result.uclX, result.lclX, result.xBar)) {
+                            alarms.push({
+                                type: 'rule-violation',
+                                message: `${rule.name}: ${rule.desc}`,
+                                level: 'danger'
+                            });
+                        }
+                    });
+
+                    const trend = checkSevenConsecutiveTrend(result.subgroupMeans);
+                    if (trend) {
+                        alarms.push({
+                            type: 'trend-violation',
+                            message: `趋势报警: 第${trend.start}-${trend.end}组连续7点${trend.type}`,
+                            level: 'warning'
+                        });
+                    }
+                }
+            } else if (project.type === 'p') {
+                const result = calculatePChart(project.data);
+                if (result) {
+                    result.proportions.forEach((p, i) => {
+                        if (p > result.uclP[i] || p < result.lclP[i]) {
+                            alarms.push({
+                                type: 'rule-violation',
+                                message: `第${i + 1}组p值(${p.toFixed(4)})超出控制限`,
+                                level: 'danger'
+                            });
+                        }
+                    });
+                }
+            } else if (project.type === 'np') {
+                const n = Math.round(project.data[0].values.reduce((a, b) => a + b, 0) / project.data[0].values.filter(v => v >= 0).length) || 50;
+                const result = calculateNpChart(project.data, n);
+                if (result) {
+                    result.defectives.forEach((np, i) => {
+                        if (np > result.uclNp || np < result.lclNp) {
+                            alarms.push({
+                                type: 'rule-violation',
+                                message: `第${i + 1}组np值(${np})超出控制限`,
+                                level: 'danger'
+                            });
+                        }
+                    });
+                }
+            }
+
+            if (alarms.length === 0) {
+                alarmContent.innerHTML = '<div class="empty-state"><p>✅ 暂无报警信息，过程稳定</p></div>';
+            } else {
+                alarmContent.innerHTML = `
+                    <div class="alarm-box">
+                        <h4>⚠️ 报警信息（共${alarms.length}条）</h4>
+                        ${alarms.map(a => `<div class="alarm-item ${a.type}">${a.message}</div>`).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        function updateStats() {
+            if (!currentProject) return;
+            const project = projects[currentProject];
+            const statsGrid = document.getElementById('statsGrid');
+            const performanceGrid = document.getElementById('performanceGrid');
+            const defectGrid = document.getElementById('defectGrid');
+
+            if (project.data.length < 2) {
+                statsGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999;">数据不足，请至少添加2组数据</div>';
+                performanceGrid.innerHTML = statsGrid.innerHTML;
+                defectGrid.innerHTML = statsGrid.innerHTML;
+                return;
+            }
+
+            if (project.type === 'xbar-r') {
+                const result = calculateXbarR(project.data);
+                if (result) {
+                    console.log('USL:', project.usl, 'LSL:', project.lsl);
+                    console.log('计算Cp/Cpk所需数据:', result);
+                    const cpResult = project.usl && project.lsl ? calculateProcessCapability(project.data, project.usl, project.lsl) : null;
+                    console.log('cpResult:', cpResult);
+                    const ppResult = project.uslp && project.lslp ? calculateProcessPerformance(project.data, project.uslp, project.lslp) : null;
+
+                    let cpkClass = '';
+                    if (cpResult) {
+                        cpkClass = cpResult.cpk >= 1.33 ? 'success' : cpResult.cpk >= 1.0 ? 'warning' : 'danger';
+                    }
+
+                    statsGrid.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-value">${result.xBar.toFixed(3)}</div>
+                            <div class="stat-label">X-bar（总均值）</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.rBar.toFixed(3)}</div>
+                            <div class="stat-label">R-bar（平均极差）</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.uclX.toFixed(3)}</div>
+                            <div class="stat-label">X-bar UCL</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.lclX.toFixed(3)}</div>
+                            <div class="stat-label">X-bar LCL</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.sigma.toFixed(3)}</div>
+                            <div class="stat-label">σ（标准差）</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.n}</div>
+                            <div class="stat-label">子组大小 n</div>
+                        </div>
+                        ${cpResult ? `
+                        <div class="stat-card ${cpkClass}">
+                            <div class="stat-value">${cpResult.cp.toFixed(3)}</div>
+                            <div class="stat-label">Cp（过程能力）</div>
+                        </div>
+                        <div class="stat-card ${cpkClass}">
+                            <div class="stat-value">${cpResult.cpk.toFixed(3)}</div>
+                            <div class="stat-label">Cpk（能力指数）</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${cpResult.cpu.toFixed(3)}</div>
+                            <div class="stat-label">CPU</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${cpResult.cpl.toFixed(3)}</div>
+                            <div class="stat-label">CPL</div>
+                        </div>
+                        ` : '<div style="grid-column:1/-1;text-align:center;padding:20px;color:#999;">请设置USL和LSL查看过程能力</div>'}
+                    `;
+
+                    if (ppResult) {
+                        let ppkClass = ppResult.ppk >= 1.33 ? 'success' : ppResult.ppk >= 1.0 ? 'warning' : 'danger';
+                        performanceGrid.innerHTML = `
+                            <div class="stat-card">
+                                <div class="stat-value">${ppResult.pp.toFixed(3)}</div>
+                                <div class="stat-label">Pp（过程性能）</div>
+                            </div>
+                            <div class="stat-card ${ppkClass}">
+                                <div class="stat-value">${ppResult.ppk.toFixed(3)}</div>
+                                <div class="stat-label">Ppk（性能指数）</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${ppResult.ppu.toFixed(3)}</div>
+                                <div class="stat-label">PPU</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${ppResult.ppl.toFixed(3)}</div>
+                                <div class="stat-label">PPL</div>
+                            </div>
+                        `;
+                    } else {
+                        performanceGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:#999;">请设置过程性能规格限（USLp/LSLp）查看Pp/Ppk</div>';
+                    }
+
+                    const allValues = project.data.flatMap(d => d.values);
+                    const outsideSpec = allValues.filter(v => v > project.usl || v < project.lsl).length;
+                    const defectRate = (outsideSpec / allValues.length * 100).toFixed(2);
+                    defectGrid.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-value">${allValues.length}</div>
+                            <div class="stat-label">总样本数</div>
+                        </div>
+                        <div class="stat-card ${outsideSpec > 0 ? 'warning' : 'success'}">
+                            <div class="stat-value">${outsideSpec}</div>
+                            <div class="stat-label">超规格数</div>
+                        </div>
+                        <div class="stat-card ${parseFloat(defectRate) > 0 ? 'warning' : 'success'}">
+                            <div class="stat-value">${defectRate}%</div>
+                            <div class="stat-label">不合格率</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${project.data.length}</div>
+                            <div class="stat-label">子组数</div>
+                        </div>
+                    `;
+                }
+            } else if (project.type === 'p') {
+                const result = calculatePChart(project.data);
+                if (result) {
+                    const totalUnits = result.defectives.reduce((sum, d) => sum + d.n, 0);
+                    const totalDefectives = result.defectives.reduce((sum, d) => sum + d.count, 0);
+                    const overallDefectRate = (totalDefectives / totalUnits * 100).toFixed(3);
+                    const cpResult = project.usl && project.lsl ? calculateProcessCapability(project.data, project.usl, project.lsl) : null;
+
+                    let cpkClass = '';
+                    if (cpResult) {
+                        cpkClass = cpResult.cpk >= 1.33 ? 'success' : cpResult.cpk >= 1.0 ? 'warning' : 'danger';
+                    }
+
+                    statsGrid.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-value">${result.pBar.toFixed(4)}</div>
+                            <div class="stat-label">p-bar（平均不合格率）</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${totalUnits}</div>
+                            <div class="stat-label">总检验数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${totalDefectives}</div>
+                            <div class="stat-label">不合格总数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.defectives.length}</div>
+                            <div class="stat-label">子组数</div>
+                        </div>
+                        ${cpResult ? `
+                        <div class="stat-card ${cpkClass}">
+                            <div class="stat-value">${cpResult.cp.toFixed(3)}</div>
+                            <div class="stat-label">Cp（过程能力）</div>
+                        </div>
+                        <div class="stat-card ${cpkClass}">
+                            <div class="stat-value">${cpResult.cpk.toFixed(3)}</div>
+                            <div class="stat-label">Cpk（能力指数）</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${cpResult.cpu.toFixed(3)}</div>
+                            <div class="stat-label">CPU</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${cpResult.cpl.toFixed(3)}</div>
+                            <div class="stat-label">CPL</div>
+                        </div>
+                        ` : '<div style="grid-column:1/-1;text-align:center;padding:20px;color:#999;">ℹ️ Cp/Cpk适用于计量型数据，请设置USL/LSL查看</div>'}
+                    `;
+
+                    performanceGrid.innerHTML = statsGrid.innerHTML;
+                    defectGrid.innerHTML = `
+                        <div class="stat-card warning">
+                            <div class="stat-value">${overallDefectRate}%</div>
+                            <div class="stat-label">总不合格率</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${totalDefectives}</div>
+                            <div class="stat-label">不合格品数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${totalUnits - totalDefectives}</div>
+                            <div class="stat-label">合格品数</div>
+                        </div>
+                    `;
+                }
+            } else if (project.type === 'np') {
+                const n = project.data[0] ? project.data[0].values.length : 50;
+                const result = calculateNpChart(project.data, n);
+                if (result) {
+                    const totalDefectives = result.defectives.reduce((a, b) => a + b, 0);
+                    const cpResult = project.usl && project.lsl ? calculateProcessCapability(project.data, project.usl, project.lsl) : null;
+
+                    let cpkClass = '';
+                    if (cpResult) {
+                        cpkClass = cpResult.cpk >= 1.33 ? 'success' : cpResult.cpk >= 1.0 ? 'warning' : 'danger';
+                    }
+
+                    statsGrid.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-value">${result.npBar.toFixed(2)}</div>
+                            <div class="stat-label">np-bar（平均不合格数）</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.n}</div>
+                            <div class="stat-label">样本大小 n</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.uclNp.toFixed(2)}</div>
+                            <div class="stat-label">UCL</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.lclNp.toFixed(2)}</div>
+                            <div class="stat-label">LCL</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${totalDefectives}</div>
+                            <div class="stat-label">不合格总数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.defectives.length}</div>
+                            <div class="stat-label">子组数</div>
+                        </div>
+                        ${cpResult ? `
+                        <div class="stat-card ${cpkClass}">
+                            <div class="stat-value">${cpResult.cp.toFixed(3)}</div>
+                            <div class="stat-label">Cp（过程能力）</div>
+                        </div>
+                        <div class="stat-card ${cpkClass}">
+                            <div class="stat-value">${cpResult.cpk.toFixed(3)}</div>
+                            <div class="stat-label">Cpk（能力指数）</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${cpResult.cpu.toFixed(3)}</div>
+                            <div class="stat-label">CPU</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${cpResult.cpl.toFixed(3)}</div>
+                            <div class="stat-label">CPL</div>
+                        </div>
+                        ` : '<div style="grid-column:1/-1;text-align:center;padding:20px;color:#999;">ℹ️ Cp/Cpk适用于计量型数据，请设置USL/LSL查看</div>'}
+                    `;
+
+                    performanceGrid.innerHTML = statsGrid.innerHTML;
+                    defectGrid.innerHTML = `
+                        <div class="stat-card warning">
+                            <div class="stat-value">${(totalDefectives / (result.defectives.length * result.n) * 100).toFixed(3)}%</div>
+                            <div class="stat-label">总不合格率</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${totalDefectives}</div>
+                            <div class="stat-label">不合格数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.n}</div>
+                            <div class="stat-label">固定样本n</div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function updateCharts() {
+            if (!currentProject) return;
+            const project = projects[currentProject];
+
+            if (xbarChart) xbarChart.destroy();
+            if (rChart) rChart.destroy();
+            if (npChart) npChart.destroy();
+
+            document.getElementById('rChartWrapper').style.display = 'none';
+            document.getElementById('npChartWrapper').style.display = 'none';
+
+            if (project.data.length < 2) return;
+
+            const labels = project.data.map((_, i) => `${i + 1}`);
+
+            if (project.type === 'xbar-r') {
+                document.getElementById('rChartWrapper').style.display = 'block';
+                const result = calculateXbarR(project.data);
+
+                const pointColors = result.subgroupMeans.map(m =>
+                    m > result.uclX || m < result.lclX ? 'rgba(220, 53, 69, 1)' : 'rgba(102, 126, 234, 1)'
+                );
+
+                xbarChart = new Chart(document.getElementById('xbarChart'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'X-bar',
+                                data: result.subgroupMeans,
+                                borderColor: 'rgba(102, 126, 234, 1)',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                borderWidth: 2,
+                                pointBackgroundColor: pointColors,
+                                pointBorderColor: pointColors,
+                                pointRadius: 6,
+                                tension: 0.1,
+                                fill: false
+                            },
+                            {
+                                label: 'UCL',
+                                data: Array(result.subgroupMeans.length).fill(result.uclX),
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderDash: [5, 5],
+                                borderWidth: 1.5,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'CL',
+                                data: Array(result.subgroupMeans.length).fill(result.xBar),
+                                borderColor: 'rgba(40, 167, 69, 1)',
+                                borderWidth: 2,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'LCL',
+                                data: Array(result.subgroupMeans.length).fill(result.lclX),
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderDash: [5, 5],
+                                borderWidth: 1.5,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: 'X-bar 控制图', font: { size: 16, weight: 'bold' } },
+                            legend: { position: 'top' }
+                        },
+                        scales: { y: { beginAtZero: false } }
+                    }
+                });
+
+                const rPointColors = result.subgroupRanges.map(r =>
+                    r > result.uclR || r < result.lclR ? 'rgba(220, 53, 69, 1)' : 'rgba(255, 193, 7, 1)'
+                );
+
+                rChart = new Chart(document.getElementById('rChart'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'R',
+                                data: result.subgroupRanges,
+                                borderColor: 'rgba(255, 193, 7, 1)',
+                                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                                borderWidth: 2,
+                                pointBackgroundColor: rPointColors,
+                                pointBorderColor: rPointColors,
+                                pointRadius: 6,
+                                tension: 0.1,
+                                fill: false
+                            },
+                            {
+                                label: 'UCL',
+                                data: Array(result.subgroupRanges.length).fill(result.uclR),
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderDash: [5, 5],
+                                borderWidth: 1.5,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'CL',
+                                data: Array(result.subgroupRanges.length).fill(result.rBar),
+                                borderColor: 'rgba(40, 167, 69, 1)',
+                                borderWidth: 2,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'LCL',
+                                data: Array(result.subgroupRanges.length).fill(result.lclR),
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderDash: [5, 5],
+                                borderWidth: 1.5,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: 'R 控制图', font: { size: 16, weight: 'bold' } },
+                            legend: { position: 'top' }
+                        },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+
+            } else if (project.type === 'p') {
+                const result = calculatePChart(project.data);
+
+                const pointColors = result.proportions.map((p, i) =>
+                    p > result.uclP[i] || p < result.lclP[i] ? 'rgba(220, 53, 69, 1)' : 'rgba(102, 126, 234, 1)'
+                );
+
+                xbarChart = new Chart(document.getElementById('xbarChart'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'p',
+                                data: result.proportions,
+                                borderColor: 'rgba(102, 126, 234, 1)',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                borderWidth: 2,
+                                pointBackgroundColor: pointColors,
+                                pointBorderColor: pointColors,
+                                pointRadius: 6,
+                                tension: 0.1,
+                                fill: false
+                            },
+                            {
+                                label: 'UCL',
+                                data: result.uclP,
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderDash: [5, 5],
+                                borderWidth: 1.5,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'p-bar',
+                                data: Array(result.proportions.length).fill(result.pBar),
+                                borderColor: 'rgba(40, 167, 69, 1)',
+                                borderWidth: 2,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'LCL',
+                                data: result.lclP,
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderDash: [5, 5],
+                                borderWidth: 1.5,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: 'p 控制图', font: { size: 16, weight: 'bold' } },
+                            legend: { position: 'top' }
+                        },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+
+            } else if (project.type === 'np') {
+                document.getElementById('npChartWrapper').style.display = 'block';
+                const n = project.data[0] ? project.data[0].values.length : 50;
+                const result = calculateNpChart(project.data, n);
+
+                const pointColors = result.defectives.map((np, i) =>
+                    np > result.uclNp || np < result.lclNp ? 'rgba(220, 53, 69, 1)' : 'rgba(153, 102, 255, 1)'
+                );
+
+                xbarChart = new Chart(document.getElementById('xbarChart'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'np',
+                                data: result.defectives,
+                                borderColor: 'rgba(153, 102, 255, 1)',
+                                backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                                borderWidth: 2,
+                                pointBackgroundColor: pointColors,
+                                pointBorderColor: pointColors,
+                                pointRadius: 6,
+                                tension: 0.1,
+                                fill: false
+                            },
+                            {
+                                label: 'UCL',
+                                data: Array(result.defectives.length).fill(result.uclNp),
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderDash: [5, 5],
+                                borderWidth: 1.5,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'np-bar',
+                                data: Array(result.defectives.length).fill(result.npBar),
+                                borderColor: 'rgba(40, 167, 69, 1)',
+                                borderWidth: 2,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'LCL',
+                                data: Array(result.defectives.length).fill(result.lclNp),
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderDash: [5, 5],
+                                borderWidth: 1.5,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: 'np 控制图', font: { size: 16, weight: 'bold' } },
+                            legend: { position: 'top' }
+                        },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+        }
+
+        function updateHistory() {
+            if (!currentProject) return;
+            const project = projects[currentProject];
+            const historyContent = document.getElementById('historyContent');
+
+            if (project.data.length === 0) {
+                historyContent.innerHTML = '<div class="empty-state"><p>暂无历史数据</p></div>';
+                return;
+            }
+
+            let tableRows = '';
+            project.data.forEach((d, i) => {
+                const mean = d.values.reduce((a, b) => a + b, 0) / d.values.length;
+                const range = Math.max(...d.values) - Math.min(...d.values);
+                const date = new Date(d.timestamp).toLocaleString();
+
+                let status = 'normal';
+                let statusText = '正常';
+
+                if (project.type === 'xbar-r') {
+                    const result = calculateXbarR(project.data);
+                    if (result) {
+                        if (mean > result.uclX || mean < result.lclX) {
+                            status = 'danger';
+                            statusText = '超限';
+                        } else if (mean > result.xBar * 1.02 || mean < result.xBar * 0.98) {
+                            status = 'warning';
+                            statusText = '偏离';
+                        }
+                    }
+                }
+
+                tableRows += `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${mean.toFixed(3)}</td>
+                        <td>${range.toFixed(3)}</td>
+                        <td>${d.values.join(', ')}</td>
+                        <td><span class="status-badge ${status}">${statusText}</span></td>
+                        <td>${date}</td>
+                    </tr>
+                `;
+            });
+
+            historyContent.innerHTML = `
+                <div style="overflow-x:auto;">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>均值</th>
+                                <th>极差</th>
+                                <th>原始数据</th>
+                                <th>状态</th>
+                                <th>时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        loadProjects();
+    </script>
+</body>
+</html>
+
+
