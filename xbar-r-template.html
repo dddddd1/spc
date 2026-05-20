@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>均值-极差(Xbar-R)控制图</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background: #f0f0f0;
+            padding: 20px;
+        }
+        .excel-container {
+            background: white;
+            border: 1px solid #ccc;
+            max-width: 1400px;
+            margin: 0 auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .excel-toolbar {
+            background: #f3f3f3;
+            padding: 8px 15px;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .excel-toolbar button {
+            padding: 5px 12px;
+            border: 1px solid #999;
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .excel-toolbar button:hover {
+            background: #e6e6e6;
+        }
+        .formula-bar {
+            background: #fff;
+            padding: 5px 10px;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+        .formula-bar span {
+            background: #e6e6e6;
+            padding: 2px 8px;
+            margin-right: 10px;
+        }
+        .sheet-container {
+            overflow-x: auto;
+        }
+        .sheet-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .sheet-table td, .sheet-table th {
+            border: 1px solid #ccc;
+            padding: 4px 6px;
+            text-align: center;
+            min-width: 60px;
+            height: 22px;
+        }
+        .sheet-table th {
+            background: #f3f3f3;
+            font-weight: normal;
+        }
+        .header-cell {
+            background: #f3f3f3;
+            font-weight: bold;
+        }
+        .title-row td {
+            font-weight: bold;
+            padding: 15px;
+            font-size: 16px;
+            background: #fff;
+        }
+        .input-cell {
+            background: #ffffcc;
+        }
+        .calc-cell {
+            background: #e6f3ff;
+        }
+        .yellow-bg {
+            background: #ffff00;
+        }
+        .chart-section {
+            padding: 20px;
+        }
+        .chart-wrapper {
+            border: 1px solid #999;
+            background: #fff;
+            padding: 10px;
+        }
+        .tabs {
+            background: #f3f3f3;
+            padding: 5px 10px;
+            border-top: 1px solid #ccc;
+        }
+        .tab {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            margin-right: 2px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .tab.active {
+            background: #fff;
+            border-bottom: 2px solid #fff;
+            margin-bottom: -1px;
+            font-weight: bold;
+        }
+        .data-input-section {
+            margin: 20px;
+            background: #f9f9f9;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .data-input-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: inline-block;
+            width: 150px;
+            font-weight: bold;
+        }
+        .input-group input {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .input-group input[type="text"],
+        .input-group input[type="number"] {
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            width: 200px;
+        }
+        .btn {
+            padding: 8px 20px;
+            background: #0078d4;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            background: #005a9e;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="data-input-section">
+        <h3>📊 数据录入</h3>
+        <div class="input-group">
+            <label>产品名称:</label>
+            <input type="text" id="productName" value="后盆支架">
+        </div>
+        <div class="input-group">
+            <label>特性参数:</label>
+            <input type="text" id="paramName" value="product inner d">
+        </div>
+        <div class="input-group">
+            <label>产品型号:</label>
+            <input type="text" id="modelName" value="62306-2">
+        </div>
+        <div class="input-group">
+            <label>规格上限 USL:</label>
+            <input type="number" step="0.001" id="usl" value="1.897">
+        </div>
+        <div class="input-group">
+            <label>规格下限 LSL:</label>
+            <input type="number" step="0.001" id="lsl" value="1.883">
+        </div>
+        <div class="input-group">
+            <label>子组大小 (n):</label>
+            <input type="number" id="subgroupSize" value="5" min="2" max="10">
+        </div>
+        <div class="input-group">
+            <label>数据 (每行一个子组，逗号分隔):</label>
+        </div>
+        <div class="input-group">
+            <textarea id="dataInput" rows="8" style="width: 600px; padding: 8px; border: 1px solid #ccc;">1.891,1.890,1.891,1.891,1.887
+1.892,1.891,1.891,1.890,1.889
+1.889,1.890,1.891,1.891,1.891
+1.888,1.890,1.890,1.887,1.891</textarea>
+        </div>
+        <button class="btn" onclick="generateChart()">生成控制图</button>
+        <button class="btn btn-secondary" onclick="loadSampleData()">加载示例数据</button>
+    </div>
+
+    <div class="excel-container">
+        <div class="excel-toolbar">
+            <span>开始</span>
+            <span>插入</span>
+            <span>页面布局</span>
+            <span>公式</span>
+            <span>数据</span>
+            <span>审阅</span>
+            <span>视图</span>
+            <div style="flex: 1;"></div>
+            <button>撤销</button>
+            <button>保存</button>
+        </div>
+        <div class="formula-bar">
+            <span>A1</span>
+            <span id="formula">=AVERAGE(F14:J14)</span>
+        </div>
+        <div class="sheet-container">
+            <table class="sheet-table" id="excelSheet">
+                <!-- 由JS生成 -->
+            </table>
+        </div>
+        <div class="chart-section">
+            <div class="chart-wrapper">
+                <canvas id="xbarChart" height="250"></canvas>
+            </div>
+        </div>
+        <div class="tabs">
+            <span class="tab active">Sheet1</span>
+            <span class="tab">Sheet2</span>
+            <span class="tab">Sheet3</span>
+        </div>
+    </div>
+
+    <script>
+        const XBAR_R_CONSTANTS = {
+            2: [0.577, 1.88, 0.00, 3.27],
+            3: [0.484, 1.02, 0.00, 2.57],
+            4: [0.429, 0.73, 0.00, 2.28],
+            5: [0.395, 0.58, 0.04, 2.11],
+            6: [0.370, 0.48, 0.10, 2.00],
+            7: [0.351, 0.42, 0.16, 1.92],
+            8: [0.337, 0.37, 0.22, 1.86],
+            9: [0.325, 0.34, 0.27, 1.82],
+            10: [0.315, 0.31, 0.31, 1.78]
+        };
+
+        let xbarChart = null;
+
+        function loadSampleData() {
+            document.getElementById('productName').value = '后盆支架';
+            document.getElementById('paramName').value = 'product inner d';
+            document.getElementById('modelName').value = '62306-2';
+            document.getElementById('usl').value = '1.897';
+            document.getElementById('lsl').value = '1.883';
+            document.getElementById('subgroupSize').value = '5';
+            document.getElementById('dataInput').value = '1.891,1.890,1.891,1.891,1.887\n1.892,1.891,1.891,1.890,1.889\n1.889,1.890,1.891,1.891,1.891\n1.888,1.890,1.890,1.887,1.891';
+            generateChart();
+        }
+
+        function generateChart() {
+            const productName = document.getElementById('productName').value;
+            const paramName = document.getElementById('paramName').value;
+            const modelName = document.getElementById('modelName').value;
+            const usl = parseFloat(document.getElementById('usl').value);
+            const lsl = parseFloat(document.getElementById('lsl').value);
+            const n = parseInt(document.getElementById('subgroupSize').value);
+            const dataText = document.getElementById('dataInput').value.trim();
+
+            const dataRows = dataText.split('\n').filter(line => line.trim());
+            const data = dataRows.map(line => {
+                const values = line.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+                return values;
+            }).filter(row => row.length > 0);
+
+            if (data.length < 2) {
+                alert('请至少输入2组数据');
+                return;
+            }
+
+            const subgroupMeans = data.map(d => d.reduce((a, b) => a + b, 0) / d.length);
+            const subgroupRanges = data.map(d => Math.max(...d) - Math.min(...d));
+            const xBar = subgroupMeans.reduce((a, b) => a + b, 0) / subgroupMeans.length;
+            const rBar = subgroupRanges.reduce((a, b) => a + b, 0) / subgroupRanges.length;
+
+            const constants = XBAR_R_CONSTANTS[n] || XBAR_R_CONSTANTS[5];
+            const a2 = constants[0];
+            const d4 = constants[3];
+            const d3 = constants[2];
+
+            const uclX = xBar + a2 * rBar;
+            const lclX = xBar - a2 * rBar;
+            const uclR = d4 * rBar;
+            const lclR = d3 * rBar;
+
+            const sigma = rBar / (n > 10 ? 2.059 : 2.326);
+
+            const cpu = (usl - xBar) / (3 * sigma);
+            const cpl = (xBar - lsl) / (3 * sigma);
+            const cpk = Math.min(cpu, cpl);
+
+            renderExcelSheet(productName, paramName, modelName, usl, lsl, data, subgroupMeans, subgroupRanges, xBar, rBar, uclX, lclX, uclR, lclR, cpk, n);
+            renderXbarChart(subgroupMeans, xBar, uclX, lclX);
+        }
+
+        function renderExcelSheet(productName, paramName, modelName, usl, lsl, data, means, ranges, xBar, rBar, uclX, lclX, uclR, lclR, cpk, n) {
+            const table = document.getElementById('excelSheet');
+            let html = '';
+
+            html += '<tr class="title-row"><td colspan="25" style="text-align:center; font-size:18px; font-weight:bold;">均值-极差(Xbar-R)控制图</td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="7" class="header-cell">产品名称</td>';
+            html += '<td colspan="4" class="input-cell">' + productName + '</td>';
+            html += '<td colspan="14">';
+            for (let i = 1; i <= data.length; i++) {
+                html += '<td class="header-cell">' + (20240905 + i) + '</td>';
+            }
+            html += '</td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="7" class="header-cell">特性参数</td>';
+            html += '<td colspan="4" class="input-cell">' + paramName + '</td>';
+            html += '<td colspan="14">';
+            for (let i = 1; i <= data.length; i++) {
+                html += '<td>' + (i % 2 === 1 ? '08' : '08') + '</td>';
+            }
+            html += '</td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="7" class="header-cell">产品型号</td>';
+            html += '<td colspan="4" class="input-cell">' + modelName + '</td>';
+            html += '<td colspan="14">';
+            for (let i = 1; i <= data.length; i++) {
+                html += '<td>' + (i <= 9 ? '0' + i : i) + '</td>';
+            }
+            html += '</td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="7" class="header-cell">Emergency</td>';
+            html += '<td colspan="4" class="input-cell">1台</td>';
+            html += '<td colspan="14">';
+            for (let i = 1; i <= data.length; i++) {
+                html += '<td>01</td>';
+            }
+            html += '</td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="7" class="header-cell">测量设备</td>';
+            html += '<td colspan="4" class="input-cell">Mitutoyo 三丰千分尺</td>';
+            html += '<td colspan="14"></td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="7" class="header-cell">零件编号</td>';
+            html += '<td colspan="4" class="input-cell">62306-2</td>';
+            html += '<td colspan="14"></td></tr>';
+
+            html += '<tr><td colspan="25"></td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="4" class="header-cell">average:</td>';
+            html += '<td colspan="3" class="calc-cell">' + xBar.toFixed(4) + '</td>';
+            html += '<td colspan="18"></td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="4" class="header-cell">R:</td>';
+            html += '<td colspan="3" class="calc-cell">' + rBar.toFixed(4) + '</td>';
+            html += '<td colspan="18"></td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="4" class="header-cell">UCL:</td>';
+            html += '<td colspan="3" class="calc-cell">' + uclX.toFixed(4) + '</td>';
+            html += '<td colspan="18"></td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="4" class="header-cell">LCL:</td>';
+            html += '<td colspan="3" class="calc-cell">' + lclX.toFixed(4) + '</td>';
+            html += '<td colspan="18"></td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="4" class="header-cell">UCL:</td>';
+            html += '<td colspan="3" class="calc-cell">' + uclR.toFixed(4) + '</td>';
+            html += '<td colspan="18"></td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="4" class="header-cell">LCL:</td>';
+            html += '<td colspan="3" class="calc-cell">' + lclR.toFixed(4) + '</td>';
+            html += '<td colspan="18"></td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="4" class="header-cell">LCL:</td>';
+            html += '<td colspan="3" class="calc-cell">0.0000</td>';
+            html += '<td colspan="18"></td></tr>';
+
+            html += '<tr><td colspan="25"></td></tr>';
+
+            html += '<tr style="background:#f3f3f3;">';
+            html += '<td></td>';
+            for (let i = 1; i <= n; i++) {
+                html += '<td class="header-cell">' + i + '</td>';
+            }
+            html += '<td class="header-cell">Xbar</td>';
+            html += '<td class="header-cell">R</td>';
+            for (let i = 1; i <= 2; i++) {
+                html += '<td class="header-cell">' + i + '</td>';
+            }
+            html += '</tr>';
+
+            for (let i = 0; i < data.length; i++) {
+                html += '<tr>';
+                html += '<td class="header-cell">' + (i + 1) + '</td>';
+                for (let j = 0; j < n; j++) {
+                    html += '<td class="input-cell">' + (data[i][j] || '') + '</td>';
+                }
+                html += '<td class="calc-cell">' + means[i].toFixed(4) + '</td>';
+                html += '<td class="calc-cell">' + ranges[i].toFixed(4) + '</td>';
+                html += '<td></td><td></td>';
+                html += '</tr>';
+            }
+
+            html += '<tr style="background:#f3f3f3;">';
+            html += '<td class="header-cell">合计</td>';
+            for (let j = 0; j < n; j++) {
+                let sum = 0;
+                for (let i = 0; i < data.length; i++) {
+                    sum += data[i][j] || 0;
+                }
+                html += '<td class="calc-cell">' + sum.toFixed(4) + '</td>';
+            }
+            html += '<td class="calc-cell">' + means.reduce((a, b) => a + b, 0).toFixed(4) + '</td>';
+            html += '<td class="calc-cell">' + ranges.reduce((a, b) => a + b, 0).toFixed(4) + '</td>';
+            html += '<td></td><td></td>';
+            html += '</tr>';
+
+            html += '<tr style="background:#f3f3f3;">';
+            html += '<td class="header-cell">平均</td>';
+            for (let j = 0; j < n; j++) {
+                let sum = 0;
+                for (let i = 0; i < data.length; i++) {
+                    sum += data[i][j] || 0;
+                }
+                html += '<td class="calc-cell">' + (sum / data.length).toFixed(4) + '</td>';
+            }
+            html += '<td class="calc-cell">' + xBar.toFixed(4) + '</td>';
+            html += '<td class="calc-cell">' + rBar.toFixed(4) + '</td>';
+            html += '<td></td><td></td>';
+            html += '</tr>';
+
+            html += '<tr><td colspan="25"></td></tr>';
+
+            html += '<tr>';
+            html += '<td colspan="4" class="yellow-bg" style="font-weight:bold;">CPK</td>';
+            html += '<td colspan="4" class="yellow-bg" style="font-weight:bold;">' + cpk.toFixed(4) + '</td>';
+            html += '<td colspan="17"></td></tr>';
+
+            table.innerHTML = html;
+        }
+
+        function renderXbarChart(means, xBar, ucl, lcl) {
+            const ctx = document.getElementById('xbarChart').getContext('2d');
+            if (xbarChart) {
+                xbarChart.destroy();
+            }
+
+            const labels = means.map((_, i) => (i + 1).toString());
+
+            xbarChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Xbar',
+                            data: means,
+                            borderColor: '#0070c0',
+                            borderWidth: 2,
+                            fill: false,
+                            pointBackgroundColor: '#0070c0',
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'UCL',
+                            data: Array(means.length).fill(ucl),
+                            borderColor: '#ff0000',
+                            borderWidth: 1,
+                            fill: false,
+                            pointRadius: 0,
+                            borderDash: [5, 5]
+                        },
+                        {
+                            label: 'CL',
+                            data: Array(means.length).fill(xBar),
+                            borderColor: '#00b050',
+                            borderWidth: 1,
+                            fill: false,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'LCL',
+                            data: Array(means.length).fill(lcl),
+                            borderColor: '#ff0000',
+                            borderWidth: 1,
+                            fill: false,
+                            pointRadius: 0,
+                            borderDash: [5, 5]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Xbar控制图'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        }
+
+        window.onload = function() {
+            loadSampleData();
+        };
+    </script>
+</body>
+</html>

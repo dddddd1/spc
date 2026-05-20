@@ -1,0 +1,19 @@
+{
+  "name": "spc-vue",
+  "version": "1.0.0",
+  "description": "SPC统计分析工具 - Vue版本",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.3.0",
+    "chart.js": "^4.4.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.4.0",
+    "vite": "^4.5.0"
+  }
+}
