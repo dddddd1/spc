@@ -2,6 +2,124 @@
     <div class="card" v-if="project && project.data.length >= 2">
         <div class="card-header">
             <h2>统计分析结果</h2>
+            <button 
+                class="algorithm-toggle-btn"
+                @click="showAlgorithm = !showAlgorithm"
+                :title="showAlgorithm ? '隐藏算法说明' : '显示算法说明'"
+            >
+                {{ showAlgorithm ? '📐 隐藏算法' : '📐 查看算法' }}
+            </button>
+        </div>
+        
+        <!-- 算法说明区域 -->
+        <div v-show="showAlgorithm" class="algorithm-section">
+            <div class="algorithm-content">
+                <h4>📊 X-bar R 控制图算法</h4>
+                <div class="algorithm-grid">
+                    <div class="algorithm-item">
+                        <strong>1. 计算子组统计量：</strong>
+                        <ul>
+                            <li><code>X̄ᵢ = Σxᵢⱼ / n</code> - 第i个子组的均值</li>
+                            <li><code>Rᵢ = max(xᵢ) - min(xᵢ)</code> - 第i个子组的极差</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="algorithm-item">
+                        <strong>2. 计算总体统计量：</strong>
+                        <ul>
+                            <li><code>X̿ = ΣX̄ᵢ / k</code> - 总均值（k为子组数）</li>
+                            <li><code>R̄ = ΣRᵢ / k</code> - 平均极差</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="algorithm-item">
+                        <strong>3. 计算控制限（使用系数A₂、D₃、D₄）：</strong>
+                        <ul>
+                            <li><code>UCL(X) = X̿ + A₂ × R̄</code> - X图上控制限</li>
+                            <li><code>CL(X) = X̿</code> - X图中心线</li>
+                            <li><code>LCL(X) = X̿ - A₂ × R̄</code> - X图下控制限</li>
+                            <li><code>UCL(R) = D₄ × R̄</code> - R图上控制限</li>
+                            <li><code>CL(R) = R̄</code> - R图中心线</li>
+                            <li><code>LCL(R) = D₃ × R̄</code> - R图下控制限</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="algorithm-item">
+                        <strong>4. 估计过程标准差：</strong>
+                        <ul>
+                            <li><code>σ = R̄ / d₂</code> - 使用R-bar/d₂方法（组内变异）</li>
+                            <li>d₂为与子组大小n相关的常数</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <h4 style="margin-top: 20px;">📈 过程能力指数（Cp/Cpk）</h4>
+                <div class="algorithm-grid">
+                    <div class="algorithm-item">
+                        <strong>使用规格限（USL/LSL）和组内变异σ计算：</strong>
+                        <ul>
+                            <li><code>Cp = (USL - LSL) / (6σ)</code> - 过程能力指数</li>
+                            <li><code>CPU = (USL - μ) / (3σ)</code> - 上侧能力指数</li>
+                            <li><code>CPL = (μ - LSL) / (3σ)</code> - 下侧能力指数</li>
+                            <li><code>Cpk = min(CPU, CPL)</code> - 过程能力指数（考虑偏移）</li>
+                        </ul>
+                        <p class="note">💡 Cp反映潜在能力，Cpk反映实际能力（考虑均值偏移）</p>
+                    </div>
+                </div>
+                
+                <h4 style="margin-top: 20px;">🎯 过程性能指数（Pp/Ppk）</h4>
+                <div class="algorithm-grid">
+                    <div class="algorithm-item">
+                        <strong>使用规格限（USLp/LSLp）和整体标准差σ计算：</strong>
+                        <ul>
+                            <li><code>σ = √[Σ(xᵢ - μ)² / N]</code> - 整体标准差（所有数据）</li>
+                            <li><code>Pp = (USL - LSL) / (6σ)</code> - 过程性能指数</li>
+                            <li><code>PPU = (USL - μ) / (3σ)</code> - 上侧性能指数</li>
+                            <li><code>PPL = (μ - LSL) / (3σ)</code> - 下侧性能指数</li>
+                            <li><code>Ppk = min(PPU, PPL)</code> - 过程性能指数（考虑偏移）</li>
+                        </ul>
+                        <p class="note">💡 Pp/Ppk反映长期实际性能，通常 Cpk ≥ Ppk</p>
+                    </div>
+                </div>
+                
+                <h4 style="margin-top: 20px;">⚠️ Western Electric 判异规则</h4>
+                <div class="algorithm-grid">
+                    <div class="algorithm-item">
+                        <strong>8条判异规则（基于3σ分区）：</strong>
+                        <ol>
+                            <li><strong>规则1：</strong>1点落在A区之外（超出±3σ控制限）</li>
+                            <li><strong>规则2：</strong>连续9点在中心线同一侧</li>
+                            <li><strong>规则3：</strong>连续6点递增或递减</li>
+                            <li><strong>规则4：</strong>连续14点交替上下波动</li>
+                            <li><strong>规则5：</strong>3点中有2点落在B区之外（±2σ以外）</li>
+                            <li><strong>规则6：</strong>5点中有4点落在C区之外（±1σ以外）</li>
+                            <li><strong>规则7：</strong>连续15点落在C区内（±1σ以内）</li>
+                            <li><strong>规则8：</strong>连续8点落在C区外（±1σ以外）</li>
+                        </ol>
+                        <p class="note">💡 分区定义：A区(±2σ~±3σ)、B区(±1σ~±2σ)、C区(0~±1σ)</p>
+                    </div>
+                </div>
+                
+                <h4 style="margin-top: 20px;">📉 p图和np图算法</h4>
+                <div class="algorithm-grid">
+                    <div class="algorithm-item">
+                        <strong>p图（不合格品率控制图）：</strong>
+                        <ul>
+                            <li><code>p̄ = Σdᵢ / Σnᵢ</code> - 平均不合格品率</li>
+                            <li><code>UCL = p̄ + 3√[p̄(1-p̄)/nᵢ]</code> - 上控制限（可变）</li>
+                            <li><code>LCL = max(0, p̄ - 3√[p̄(1-p̄)/nᵢ])</code> - 下控制限</li>
+                        </ul>
+                    </div>
+                    <div class="algorithm-item">
+                        <strong>np图（不合格品数控制图，样本量固定）：</strong>
+                        <ul>
+                            <li><code>np̄ = Σdᵢ / k</code> - 平均不合格品数</li>
+                            <li><code>UCL = np̄ + 3√[np̄(1-p̄)]</code> - 上控制限</li>
+                            <li><code>LCL = max(0, np̄ - 3√[np̄(1-p̄)])</code> - 下控制限</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div class="tab-container">
@@ -229,6 +347,7 @@ export default {
     },
     setup(props) {
         const activeTab = ref('capability');
+        const showAlgorithm = ref(false);
         
         // 计算属性
         const xbarRResult = computed(() => {
@@ -452,6 +571,7 @@ export default {
 
         return {
             activeTab,
+            showAlgorithm,
             xbarRResult,
             cpResult,
             ppResult,
@@ -466,7 +586,7 @@ export default {
             npSampleSize,
             npDefectRate,
             conclusion,
-            conclusionColors
+            conclusionColors,
         };
     }
 }

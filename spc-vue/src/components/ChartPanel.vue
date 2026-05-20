@@ -2,6 +2,93 @@
     <div class="card" v-if="project && project.data.length >= 2">
         <div class="card-header">
             <h2>控制图</h2>
+            <button 
+                class="algorithm-toggle-btn"
+                @click="showAlgorithm = !showAlgorithm"
+                :title="showAlgorithm ? '隐藏算法说明' : '显示算法说明'"
+            >
+                {{ showAlgorithm ? '📐 隐藏算法' : '📐 查看算法' }}
+            </button>
+        </div>
+        
+        <!-- 算法说明区域 -->
+        <div v-show="showAlgorithm" class="algorithm-section">
+            <div class="algorithm-content">
+                <h4>📊 X-bar R 控制图绘制原理</h4>
+                <div class="algorithm-grid">
+                    <div class="algorithm-item">
+                        <strong>X-bar图（均值控制图）：</strong>
+                        <ul>
+                            <li><strong>目的：</strong>监控过程均值的变化趋势</li>
+                            <li><strong>数据点：</strong>每个子组的平均值 X̄ᵢ</li>
+                            <li><strong>中心线CL：</strong>所有子组均值的总平均 X̿</li>
+                            <li><strong>控制限UCL/LCL：</strong>X̿ ± A₂ × R̄（基于3σ原则）</li>
+                            <li><strong>异常判断：</strong>点超出控制限或触发判异规则</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="algorithm-item">
+                        <strong>R图（极差控制图）：</strong>
+                        <ul>
+                            <li><strong>目的：</strong>监控过程变异（离散程度）的稳定性</li>
+                            <li><strong>数据点：</strong>每个子组的极差 Rᵢ = max - min</li>
+                            <li><strong>中心线CL：</strong>平均极差 R̄</li>
+                            <li><strong>控制限UCL/LCL：</strong>D₄×R̄ / D₃×R̄</li>
+                            <li><strong>注意：</strong>LCL不能为负数，取max(0, D₃×R̄)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="algorithm-item">
+                        <strong>系数表（A₂、D₃、D₄、d₂）：</strong>
+                        <p>这些系数与子组大小n相关，用于计算控制限和估计标准差。</p>
+                        <ul>
+                            <li>n=2: A₂=1.880, D₃=0, D₄=3.267, d₂=1.128</li>
+                            <li>n=3: A₂=1.023, D₃=0, D₄=2.574, d₂=1.693</li>
+                            <li>n=4: A₂=0.729, D₃=0, D₄=2.282, d₂=2.059</li>
+                            <li>n=5: A₂=0.577, D₃=0, D₄=2.114, d₂=2.326</li>
+                            <li>n≥6: 查表获取精确值</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <h4 style="margin-top: 20px;">📈 p图（不合格品率控制图）</h4>
+                <div class="algorithm-grid">
+                    <div class="algorithm-item">
+                        <strong>适用场景：</strong>样本量可变的计数型数据
+                        <ul>
+                            <li><strong>数据点：</strong>第i组的不合格品率 pᵢ = dᵢ/nᵢ</li>
+                            <li><strong>中心线CL：</strong>平均不合格品率 p̄ = Σdᵢ/Σnᵢ</li>
+                            <li><strong>控制限：</strong>p̄ ± 3√[p̄(1-p̄)/nᵢ]（随样本量变化）</li>
+                            <li><strong>特点：</strong>UCL和LCL不是直线，而是曲线</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <h4 style="margin-top: 20px;">📉 np图（不合格品数控制图）</h4>
+                <div class="algorithm-grid">
+                    <div class="algorithm-item">
+                        <strong>适用场景：</strong>样本量固定的计数型数据
+                        <ul>
+                            <li><strong>数据点：</strong>第i组的不合格品数 npᵢ</li>
+                            <li><strong>中心线CL：</strong>平均不合格品数 np̄ = Σnpᵢ/k</li>
+                            <li><strong>控制限：</strong>np̄ ± 3√[np̄(1-p̄)]（固定值）</li>
+                            <li><strong>前提条件：</strong>所有子组样本量必须相同</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <h4 style="margin-top: 20px;">🎨 图表颜色说明</h4>
+                <div class="algorithm-grid">
+                    <div class="algorithm-item">
+                        <ul>
+                            <li><span style="color: #667eea; font-weight: bold;">● 蓝色点：</span>正常数据点（在控制限内）</li>
+                            <li><span style="color: #dc3545; font-weight: bold;">● 红色点：</span>异常数据点（超出控制限）</li>
+                            <li><span style="color: #28a745; font-weight: bold;">━ 绿色实线：</span>中心线（CL）</li>
+                            <li><span style="color: #dc3545; font-weight: bold;">- - 红色虚线：</span>上/下控制限（UCL/LCL）</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- X-bar R图 -->
@@ -52,6 +139,7 @@ export default {
         const rChart = ref(null);
         const pChart = ref(null);
         const npChart = ref(null);
+        const showAlgorithm = ref(false);
 
         // 销毁旧图表
         const destroyCharts = () => {
@@ -368,7 +456,9 @@ export default {
             updateCharts();
         });
 
-        return {};
+        return {
+            showAlgorithm
+        };
     }
 }
 </script>
