@@ -109,21 +109,33 @@ export function calculateXbarR(data) {
     const rBar = subgroupRanges.reduce((a, b) => a + b, 0) / subgroupRanges.length;
 
     let a2 = 0.577;
+    let d2 = 1.128; // 用于计算标准差σ
     if (XBAR_R_CONSTANTS[n]) {
-        a2 = XBAR_R_CONSTANTS[n][0];
+        a2 = XBAR_R_CONSTANTS[n][0];  // A2系数
+        d2 = XBAR_R_CONSTANTS[n][1];  // d2系数
     } else if (n > 10) {
         a2 = 3 / (n * Math.sqrt(2));
+        d2 = n > 15 ? 3.472 : 3.078;
     }
 
     const uclX = xBar + a2 * rBar;
     const lclX = xBar - a2 * rBar;
 
-    let d4 = 2.459;
-    if (n > 10) d4 = n > 15 ? 1.964 : 2.114;
+    // 使用D3和D4系数计算R图的控制限
+    let d3 = 0;  // D3系数
+    let d4 = 3.267;  // D4系数
+    if (XBAR_R_CONSTANTS[n]) {
+        d3 = XBAR_R_CONSTANTS[n][2];  // D3系数
+        d4 = XBAR_R_CONSTANTS[n][3];  // D4系数
+    } else if (n > 10) {
+        d3 = n > 15 ? 0.347 : 0.223;
+        d4 = n > 15 ? 1.653 : 1.777;
+    }
+    
     const uclR = d4 * rBar;
-    const lclR = 0;
+    const lclR = Math.max(0, d3 * rBar); // LCL不能为负数
 
-    const sigma = rBar / 1.128;
+    const sigma = rBar / d2; // 使用正确的d2系数计算标准差
 
     return {
         xBar, rBar, uclX, lclX, uclR, lclR,

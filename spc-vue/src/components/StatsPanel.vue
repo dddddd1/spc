@@ -40,14 +40,35 @@
                         <div class="stat-value">{{ xbarRResult?.rBar.toFixed(3) }}</div>
                         <div class="stat-label">R-bar（平均极差）</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value">{{ xbarRResult?.uclX.toFixed(3) }}</div>
-                        <div class="stat-label">X-bar UCL</div>
+                    
+                    <!-- X-bar 控制限 -->
+                    <div class="stat-card" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
+                        <div class="stat-value" style="color: #1976d2;">{{ xbarRResult?.uclX.toFixed(3) }}</div>
+                        <div class="stat-label">UCL(X)</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value">{{ xbarRResult?.lclX.toFixed(3) }}</div>
-                        <div class="stat-label">X-bar LCL</div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
+                        <div class="stat-value" style="color: #388e3c;">{{ xbarRResult?.xBar.toFixed(3) }}</div>
+                        <div class="stat-label">CL(X)</div>
                     </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);">
+                        <div class="stat-value" style="color: #d32f2f;">{{ xbarRResult?.lclX.toFixed(3) }}</div>
+                        <div class="stat-label">LCL(X)</div>
+                    </div>
+                    
+                    <!-- R 控制限 -->
+                    <div class="stat-card" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);">
+                        <div class="stat-value" style="color: #f57c00;">{{ xbarRResult?.uclR.toFixed(3) }}</div>
+                        <div class="stat-label">UCL(R)</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);">
+                        <div class="stat-value" style="color: #7b1fa2;">{{ xbarRResult?.rBar.toFixed(3) }}</div>
+                        <div class="stat-label">CL(R)</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%);">
+                        <div class="stat-value" style="color: #c2185b;">{{ xbarRResult?.lclR.toFixed(3) }}</div>
+                        <div class="stat-label">LCL(R)</div>
+                    </div>
+                    
                     <div class="stat-card">
                         <div class="stat-value">{{ xbarRResult?.sigma.toFixed(3) }}</div>
                         <div class="stat-label">σ（标准差）</div>
