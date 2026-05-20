@@ -184,14 +184,26 @@ export function calculateNpChart(data, n) {
     return { npBar, uclNp, lclNp, defectives, n };
 }
 
-// 过程能力计算
+// 过程能力计算（使用组内变异估计的σ）
 export function calculateProcessCapability(data, usl, lsl) {
     if (!data || !usl || !lsl) return null;
 
     const allValues = data.flatMap(d => d.values);
     const mean = allValues.reduce((a, b) => a + b, 0) / allValues.length;
-    const variance = allValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (allValues.length - 1);
-    const sigma = Math.sqrt(variance);
+    
+    // 对于X-bar R图，使用R-bar/d2估计σ（组内变异）
+    const subgroupRanges = data.map(d => Math.max(...d.values) - Math.min(...d.values));
+    const rBar = subgroupRanges.reduce((a, b) => a + b, 0) / subgroupRanges.length;
+    const n = data[0].values.length;
+    
+    let d2 = 1.128; // d2系数
+    if (XBAR_R_CONSTANTS[n]) {
+        d2 = XBAR_R_CONSTANTS[n][1];  // d2系数
+    } else if (n > 10) {
+        d2 = n > 15 ? 3.472 : 3.078;
+    }
+    
+    const sigma = rBar / d2; // 使用R-bar/d2估计σ
 
     if (sigma === 0) return null;
 
